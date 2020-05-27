@@ -60,6 +60,7 @@ class Node(object):
     def add_head(self, edge):
         assert edge["target"] == self.id
         remote = False
+        #TODO what is remote
         if "properties" in edge and "remote" in edge["properties"]:
             remote = True
         if edge["source"] in self.head_ids:
@@ -92,7 +93,7 @@ class Graph(object):
 
         self.companion = js["companion"]
 
-        self.nodes = {}
+        self.nodes = {} 
         if 'nodes' in js:
             for node in js["nodes"]:
                 self.nodes[node["id"]] = Node(node)
@@ -537,3 +538,5 @@ def check_pos_frame(file_path):
                 print(sentence)
 
     print(len(pos), len(frame))
+
+
