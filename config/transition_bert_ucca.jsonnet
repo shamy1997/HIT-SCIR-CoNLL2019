@@ -74,11 +74,11 @@
     "batch_size": std.parseInt(std.extVar('BATCH_SIZE'))
   },
   "trainer": {
-    "num_epochs": 50,
+    "num_epochs": 3,
     "grad_norm": 5.0,
     "grad_clipping": 5.0,
     "patience": 50,
-    "cuda_device": 0,
+    "cuda_device": std.parseInt(std.extVar('CUDA_VISIBLE_DEVICES')),
     "validation_metric": "+all-f",
     "optimizer": {
       "type": "adam",
@@ -91,7 +91,7 @@
     },
     "learning_rate_scheduler": {
       "type": "slanted_triangular",
-      "num_epochs": 50,
+      "num_epochs": 3,
       "num_steps_per_epoch": 1000,
       "cut_frac": 0.1,
       "ratio": 32,

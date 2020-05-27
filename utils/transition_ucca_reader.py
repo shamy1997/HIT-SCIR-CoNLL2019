@@ -732,3 +732,10 @@ def count_continuous_anchors(file_path):
 
             if uncontinuous_num > 0 and total_num > 50:
                 print(uncontinuous_num, total_num)
+#
+# if __name__ == '__main__':
+#     file_path = 'data/ucca/temp/ucca_100_train.aug.mrp'
+#     # check_pos_frame(file_path)
+#     reader = UCCADatasetReaderConll2019()
+#     dataset = reader.read(file_path)
+#     print('ok')
