@@ -43,10 +43,10 @@ class Node(object):
         self.anchored = False
         self.anchors = []
         self.label = info["label"]
-        if "properties" in info:
-            assert len(info["properties"]) == 1
-        self.properties = info["properties"][0] if "properties" in info else None
-        self.values = info["values"][0] if "values" in info else None
+        # if "properties" in info:
+        #     assert len(info["properties"]) == 1
+        self.properties = info["properties"] if "properties" in info else None
+        self.values = info["values"] if "values" in info else None
 
         if "anchors" in info:
             self.anchors = [(anc["from"], anc["to"]) for anc in info["anchors"]]
@@ -764,10 +764,11 @@ def check_top_nodes(file_path):
     print(err_multi, err_none)
 
 
-def check_carg(file_path, output_file_path):
+def check_carg(file_path):
     # check carg property of node in EDS
 
     value_label_dict = {}
+    value_properties_dict = {}
 
     triple_list = []
     with open(file_path, 'r', encoding='utf8') as eds_file:
@@ -777,17 +778,25 @@ def check_carg(file_path, output_file_path):
                 if node_info.values is not None:
                     if node_info.label not in value_label_dict:
                         value_label_dict[node_info.label] = []
+                    if tuple(node_info.properties) not in value_properties_dict:
+                        value_properties_dict[tuple(node_info.properties)] = node_info.values
+
+
 
                     info_tuple = '---'.join(
-                        [node_info.values, graph.input[node_info.anchors[0][0]:node_info.anchors[0][1]]])
+                        ['---'.join(node_info.values), graph.input[node_info.anchors[0][0]:node_info.anchors[0][1]]])
                     if info_tuple not in value_label_dict[node_info.label]:
                         value_label_dict[node_info.label].append(info_tuple)
 
                     triple_list.append('\t'.join([graph.input[node_info.anchors[0][0]:node_info.anchors[0][1]], \
                                                   node_info.label, \
-                                                  node_info.values, \
+                                                  '\t'.join(node_info.values), \
                                                   ]))
-    print(list(value_label_dict.keys()))
+    # print(list(value_label_dict.keys()))
+    # for key,value in value_label_dict.items():
+    #     print(key,value)
+    for key,value in value_properties_dict.items():
+        print(key,value)
 
 
 def check_longest_sentence(file_path):
