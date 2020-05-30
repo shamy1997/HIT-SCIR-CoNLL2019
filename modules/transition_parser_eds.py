@@ -217,6 +217,7 @@ class TransitionParser(Model):
                     log_probs = None
                     action = valid_actions[0]
 
+                    # 选择有效操作
                     if len(valid_actions) > 1:
                         stack_emb = self.stack.get_output(sent_idx)
                         buffer_emb = self.pempty_buffer_emb if self.buffer.get_len(sent_idx) == 0 \
@@ -395,9 +396,23 @@ class TransitionParser(Model):
                     action_sequence_length[sent_idx] += 1
 
         # categorical cross-entropy
-        _loss_CCE = -torch.sum(
-            torch.stack([torch.sum(torch.stack(cur_loss)) for cur_loss in losses if len(cur_loss) > 0])) / \
-                    sum([len(cur_loss) for cur_loss in losses])
+        temp_loss = []
+
+        for cur_loss in losses:
+            if len(cur_loss) > 0:
+                try:
+                    temp_loss.append(torch.sum(torch.stack(cur_loss)))
+                except:
+                    cur_loss = torch.nn.Parameter(torch.tensor([0]).float()).to(self.pempty_action_emb.device)
+                    temp_loss.append(torch.sum(torch.stack(cur_loss)))
+                    print(f'sent {sent_idx} has problem !!! ')
+        _loss_CCE = -torch.stack(temp_loss)/sum([len(cur_loss) for cur_loss in losses])
+
+            # _loss_CCE = -torch.sum(
+            #     torch.stack([torch.sum(torch.stack(cur_loss)) for cur_loss in losses if len(cur_loss) > 0])) / \
+            #             sum([len(cur_loss) for cur_loss in losses])
+
+
 
         _loss = _loss_CCE
 

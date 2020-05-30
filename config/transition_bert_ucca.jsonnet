@@ -83,11 +83,12 @@
     "optimizer": {
       "type": "adam",
       "parameter_groups": [
-        [[".*bert.*"], {"lr": 5e-5}],
+        [[".*bert.*"], {"lr": 5e-5,"weight_decay":5e-5}],
         [["^((?!bert).)*$"], {}]
       ],
       "betas": [0.9, 0.999],
-      "lr": 1e-3
+      "lr": 1e-3,
+      "weight_decay":5e-5,
     },
     "learning_rate_scheduler": {
       "type": "slanted_triangular",
