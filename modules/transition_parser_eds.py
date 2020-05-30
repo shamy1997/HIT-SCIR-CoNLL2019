@@ -406,7 +406,7 @@ class TransitionParser(Model):
                     cur_loss = torch.nn.Parameter(torch.tensor([0]).float()).to(self.pempty_action_emb.device)
                     temp_loss.append(torch.sum(torch.stack(cur_loss)))
                     print(f'sent {sent_idx} has problem !!! ')
-        _loss_CCE = -torch.stack(temp_loss)/sum([len(cur_loss) for cur_loss in losses])
+        _loss_CCE = -torch.sum(torch.stack(temp_loss)/sum([len(cur_loss) for cur_loss in losses]))
 
             # _loss_CCE = -torch.sum(
             #     torch.stack([torch.sum(torch.stack(cur_loss)) for cur_loss in losses if len(cur_loss) > 0])) / \
