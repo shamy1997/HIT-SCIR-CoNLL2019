@@ -110,6 +110,8 @@ class TransitionParser(Model):
                                      layer_dropout_probability=layer_dropout_probability,
                                      same_dropout_mask_per_instance=same_dropout_mask_per_instance)
         initializer(self)
+        statedict = torch.load('checkpoints/ucca_bert_wmm_test/model_state_epoch_6.th')
+        self.load_state_dict(statedict)
 
     def expand_arc_with_descendants(self, arc_indices, total_node_num, len_tokens):
 
@@ -431,7 +433,7 @@ class TransitionParser(Model):
                     temp_loss.append(torch.sum(torch.stack(cur_loss)))
                     print(f'sent {sent_idx} has problem !!! ')
 
-        _loss_CCE = -torch.stack(temp_loss)/sum([len(cur_loss) for cur_loss in losses])
+        _loss_CCE = -torch.sum(torch.stack(temp_loss)/sum([len(cur_loss) for cur_loss in losses]))
         # _loss_CCE = -torch.sum(
         #     torch.stack([torch.sum(torch.stack(cur_loss)) for cur_loss in losses if len(cur_loss) > 0])) / \
         #             sum([len(cur_loss) for cur_loss in losses])
