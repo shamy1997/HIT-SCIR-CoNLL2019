@@ -110,7 +110,8 @@ class TransitionParser(Model):
                                      layer_dropout_probability=layer_dropout_probability,
                                      same_dropout_mask_per_instance=same_dropout_mask_per_instance)
         initializer(self)
-        statedict = torch.load('checkpoints/ucca_bert_wmm_test/model_state_epoch_6.th')
+        statedict = torch.load('checkpoints/ucca_bert_wmm_test/model_state_epoch_6.th',map_location=torch.device('cpu'))
+
         self.load_state_dict(statedict)
 
     def expand_arc_with_descendants(self, arc_indices, total_node_num, len_tokens):
@@ -316,8 +317,12 @@ class TransitionParser(Model):
 
                         loss = log_probs[valid_action_tbl[action]]
 
-                        if not torch.isnan(loss):
-                            losses[sent_idx].append(loss)
+                        # if not torch.isnan(loss):
+                        #     losses[sent_idx].append(loss)
+
+                        safe_loss = torch.where(torch.isnan(loss), torch.zeros_like(loss,requires_grad=True), loss)
+                        losses[sent_idx].append(safe_loss)
+
 
                     # generate concept node, recursive way
                     if action in action_id["NODE"] + action_id["REMOTE-NODE"]:
@@ -425,19 +430,21 @@ class TransitionParser(Model):
                     action_sequence_length[sent_idx] += 1
 
         # categorical cross-entropy
-        temp_loss = []
-        for cur_loss in losses:
-            try:
-                temp_loss.append(torch.sum(torch.stack(cur_loss)))
-            except:
-                cur_loss = torch.nn.Parameter(torch.tensor([0]).float()).to(self.pempty_action_emb.device)
-                temp_loss.append(torch.sum(torch.stack(cur_loss)))
-                print(f'sent {sent_idx} has problem !!! ')
+        # temp_loss = []
+        # losses = [[],[],[],[]]
+        # for cur_loss in losses:
+        #     try:
+        #         temp_loss.append(torch.sum(torch.stack(cur_loss)))
+        #         print('??')
+        #     except:
+        #         cur_loss = torch.nn.Parameter(torch.tensor([0]).float()).to(self.pempty_action_emb.device)
+        #         temp_loss.append(torch.sum(torch.stack(cur_loss)))
+        #         print(f'sent {sent_idx} has problem !!! ')
 
-        _loss_CCE = -torch.sum(torch.stack(temp_loss)/sum([len(cur_loss) for cur_loss in losses]))
-        # _loss_CCE = -torch.sum(
-        #     torch.stack([torch.sum(torch.stack(cur_loss)) for cur_loss in losses if len(cur_loss) > 0])) / \
-        #             sum([len(cur_loss) for cur_loss in losses])
+        # _loss_CCE = -torch.sum(torch.stack(temp_loss)/sum([len(cur_loss) for cur_loss in losses]))
+        _loss_CCE = -torch.sum(
+            torch.stack([torch.sum(torch.stack(cur_loss)) for cur_loss in losses if len(cur_loss) > 0])) / \
+                    sum([len(cur_loss) for cur_loss in losses])
 
 
         _loss = _loss_CCE
