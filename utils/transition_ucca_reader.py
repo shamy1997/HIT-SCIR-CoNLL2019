@@ -57,7 +57,7 @@ class Node(object):
     def add_head(self, edge):
         assert edge["target"] == self.id
         remote = False
-        if "properties" in edge and "remote" in edge["properties"]:
+        if "attributes" in edge and "remote" in edge["attributes"]:
             remote = True
         if edge["source"] in self.head_ids:
             self.heads.append(Head(edge["source"], edge["label"], remote))
@@ -71,7 +71,7 @@ class Node(object):
         assert edge["source"] == self.id
         # assert self.anchored ==False
         remote = False
-        if "properties" in edge and "remote" in edge["properties"]:
+        if "attributes" in edge and "remote" in edge["attributes"]:
             remote = True
         if edge["target"] in self.child_ids:
             self.childs.append(Child(edge["target"], edge["label"], remote))
@@ -428,7 +428,7 @@ class UCCADatasetReaderConll2019(DatasetReader):
                                                               len(tokens)) if "layer_1_node" in ret else None
 
                 if gold_actions and gold_actions[-2] == '-E-':
-                    print('-E-')
+                    print('-E-'+ ret["gold_mrps"]["id"])
                     continue
                 yield self.text_to_instance(tokens, lemmas, pos_tags, arc_indices, arc_tags, gold_actions,
                                             arc_descendants, [root_id], [meta_info], tokens_range, [gold_mrps])
@@ -637,8 +637,7 @@ def get_oracle_actions(tokens, arc_indices, arc_tags, root_id, concept_node_expe
             return
 
         # SWAP
-        elif len(stack) > 2 and generated_order[s0] > generated_order[s1] and (
-                has_unfound_child(stack[-3]) or lack_head(stack[-3])):
+        elif len(stack) > 2 and generated_order[s0] > generated_order[s1]:
             buffer.append(stack.pop(-2))
             actions.append("SWAP")
             return
