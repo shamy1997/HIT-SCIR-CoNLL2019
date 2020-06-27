@@ -34,7 +34,7 @@ class TransitionParser(Model):
                  pos_tag_embedding: Embedding = None,
                  action_embedding: Embedding = None,
                  initializer: InitializerApplicator = InitializerApplicator(),
-                 regularizer: Optional[RegularizerApplicator] = None
+                 regularizer: Optional[RegularizerApplicator] = None,
                  ) -> None:
 
         super(TransitionParser, self).__init__(vocab, regularizer)
@@ -110,9 +110,9 @@ class TransitionParser(Model):
                                      layer_dropout_probability=layer_dropout_probability,
                                      same_dropout_mask_per_instance=same_dropout_mask_per_instance)
         initializer(self)
-        statedict = torch.load('checkpoints/ucca_bert_wmm_test/model_state_epoch_6.th',map_location=torch.device('cpu'))
-
-        self.load_state_dict(statedict)
+        # statedict = torch.load('checkpoints/ucca_bert_wmm_test/model_state_epoch_6.th',map_location=torch.device('cpu'))
+        #
+        # self.load_state_dict(statedict)
 
     def expand_arc_with_descendants(self, arc_indices, total_node_num, len_tokens):
 
