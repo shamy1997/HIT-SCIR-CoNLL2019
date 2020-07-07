@@ -764,11 +764,10 @@ def check_top_nodes(file_path):
     print(err_multi, err_none)
 
 
-def check_carg(file_path):
+def check_carg(file_path, output_file_path):
     # check carg property of node in EDS
 
     value_label_dict = {}
-    value_properties_dict = {}
 
     triple_list = []
     with open(file_path, 'r', encoding='utf8') as eds_file:
@@ -778,25 +777,17 @@ def check_carg(file_path):
                 if node_info.values is not None:
                     if node_info.label not in value_label_dict:
                         value_label_dict[node_info.label] = []
-                    if tuple(node_info.properties) not in value_properties_dict:
-                        value_properties_dict[tuple(node_info.properties)] = node_info.values
-
-
 
                     info_tuple = '---'.join(
-                        ['---'.join(node_info.values), graph.input[node_info.anchors[0][0]:node_info.anchors[0][1]]])
+                        [node_info.values, graph.input[node_info.anchors[0][0]:node_info.anchors[0][1]]])
                     if info_tuple not in value_label_dict[node_info.label]:
                         value_label_dict[node_info.label].append(info_tuple)
 
                     triple_list.append('\t'.join([graph.input[node_info.anchors[0][0]:node_info.anchors[0][1]], \
                                                   node_info.label, \
-                                                  '\t'.join(node_info.values), \
+                                                  node_info.values, \
                                                   ]))
-    # print(list(value_label_dict.keys()))
-    # for key,value in value_label_dict.items():
-    #     print(key,value)
-    for key,value in value_properties_dict.items():
-        print(key,value)
+    print(list(value_label_dict.keys()))
 
 
 def check_longest_sentence(file_path):
@@ -812,3 +803,9 @@ def check_longest_sentence(file_path):
 
     cnt = cnt / 35656.0
     print(max_len, cnt)
+
+if __name__ == '__main__':
+    # file = '/Users/jyq/Desktop/研一/7conll/mrp/2020/split/eds/v3/eds_dev.aug.mrp'
+    file = '//Users/jyq/Desktop/研一/7conll/mrp/2020/split/eds/v3/eds_train_re.aug.mrp'
+    reader = EDSDatasetReaderConll2019()
+    dataset = reader.read(file)

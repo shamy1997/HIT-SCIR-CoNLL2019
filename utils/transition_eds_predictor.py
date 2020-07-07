@@ -12,6 +12,10 @@ from utils.transition_eds_reader import parse_sentence
 
 @Predictor.register('transition_predictor_eds')
 class EDSParserPredictor(Predictor):
+    def __init__(self, model, dataset_reader) -> None:
+        self._model = model
+        self._dataset_reader = dataset_reader
+
     def predict(self, sentence: str) -> JsonDict:
         """
         Predict a dependency parse for the given sentence.
@@ -225,9 +229,10 @@ def get_carg_value(label, token):
         if value in list(month_dict.values()):
             return value
 
+        # changed followed github issue
         for value_sp in value.lower().split():
-            if value in month_dict:
-                value = month_dict[month_dict]
+            if value_sp in month_dict:
+                value_sp = month_dict[value_sp]
 
     elif label == 'named':
         # W.D.) -> W.D.

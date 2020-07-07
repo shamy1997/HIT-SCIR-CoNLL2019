@@ -243,7 +243,12 @@ class TransitionParser(Model):
 
                     if log_probs is not None:
                         # append the action-specific loss
-                        losses[sent_idx].append(log_probs[valid_action_tbl[action]])
+
+                        loss = log_probs[valid_action_tbl[action]]
+                        # losses[sent_idx].append(log_probs[valid_action_tbl[action]])
+
+                        safe_loss = torch.where(torch.isnan(loss), torch.zeros_like(loss, requires_grad=True), loss)
+                        losses[sent_idx].append(safe_loss)
 
                     # generate concept node, push it into buffer and align it with the second item in buffer
                     if action in action_id["START"]:
@@ -396,23 +401,26 @@ class TransitionParser(Model):
                     action_sequence_length[sent_idx] += 1
 
         # categorical cross-entropy
-        temp_loss = []
+        # temp_loss = []
+        #
+        # for cur_loss in losses:
+        #     if len(cur_loss) > 0:
+        #         try:
+        #             temp_loss.append(torch.sum(torch.stack(cur_loss)))
+        #         except:
+        #             cur_loss = torch.nn.Parameter(torch.tensor([0]).float()).to(self.pempty_action_emb.device)
+        #             temp_loss.append(torch.sum(torch.stack(cur_loss)))
+        #             print(f'sent {sent_idx} has problem !!! ')
 
-        for cur_loss in losses:
-            if len(cur_loss) > 0:
-                try:
-                    temp_loss.append(torch.sum(torch.stack(cur_loss)))
-                except:
-                    cur_loss = torch.nn.Parameter(torch.tensor([0]).float()).to(self.pempty_action_emb.device)
-                    temp_loss.append(torch.sum(torch.stack(cur_loss)))
-                    print(f'sent {sent_idx} has problem !!! ')
-        _loss_CCE = -torch.sum(torch.stack(temp_loss)/sum([len(cur_loss) for cur_loss in losses]))
+        _loss_CCE = -torch.sum(
+            torch.stack([torch.sum(torch.stack(cur_loss)) for cur_loss in losses if len(cur_loss) > 0])) / \
+                    sum([len(cur_loss) for cur_loss in losses])
+
+        # _loss_CCE = -torch.sum(torch.stack(temp_loss)/sum([len(cur_loss) for cur_loss in losses]))
 
             # _loss_CCE = -torch.sum(
             #     torch.stack([torch.sum(torch.stack(cur_loss)) for cur_loss in losses if len(cur_loss) > 0])) / \
             #             sum([len(cur_loss) for cur_loss in losses])
-
-
 
         _loss = _loss_CCE
 
