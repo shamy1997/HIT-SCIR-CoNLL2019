@@ -8,13 +8,15 @@ from allennlp.predictors.predictor import Predictor
 from overrides import overrides
 
 from utils.transition_eds_reader import parse_sentence
-
+from utils.eds_multilabel_predictor import load_model
 
 @Predictor.register('transition_predictor_eds')
 class EDSParserPredictor(Predictor):
     def __init__(self, model, dataset_reader) -> None:
         self._model = model
         self._dataset_reader = dataset_reader
+        model_path = 'data/eds_label/model.tar.gz'
+        self.pv_predictor, self.vocab_dict = load_model(model_path)
 
     def predict(self, sentence: str) -> JsonDict:
         """
@@ -47,7 +49,7 @@ class EDSParserPredictor(Predictor):
     @overrides
     def predict_instance(self, instance: Instance) -> JsonDict:
         outputs = self._model.forward_on_instance(instance)
-        ret_dict = eds_trans_outputs_into_mrp(outputs)
+        ret_dict = eds_trans_outputs_into_mrp(self.pv_predictor,self.vocab_dict,outputs)
         return sanitize(ret_dict)
 
     @overrides
@@ -64,7 +66,7 @@ class EDSParserPredictor(Predictor):
         return sanitize(ret_dict_batch)
 
 
-def eds_trans_outputs_into_mrp(outputs):
+def eds_trans_outputs_into_mrp(predictor,vocab_dict,outputs):
     edge_list = outputs["edge_list"]
     tokens = outputs["tokens"]
     meta_info = outputs["meta_info"]
@@ -86,21 +88,34 @@ def eds_trans_outputs_into_mrp(outputs):
     for node_idx, node_info in concept_node_list.items():
         if "end" in node_info:
             crag_ret = get_carg_value(node_info["label"],
-                                      ' '.join(tokens[node_info["start"]:node_info["end"] + 1]))
+                                      ' '.join(tokens[node_info["start"]:node_info["end"]+1]))
+            other_ret = get_other_value(predictor,vocab_dict,node_info["label"],
+                                      ' '.join(tokens[node_info["start"]:node_info["end"]+1]))
             if crag_ret != False:
                 nodes_info_list.append(
                     {"anchors": [
                         {"from": tokens_range[node_info["start"]][0], "to": tokens_range[node_info["end"]][1]}], \
                         "id": node_cnt,
                         "label": node_info["label"],
-                        "properties": ["carg"],
-                        "values": [crag_ret]})
+                        "properties": ["carg"]+other_ret[0],
+                        "values": [crag_ret]+other_ret[1]})
             else:
-                nodes_info_list.append(
-                    {"anchors": [
-                        {"from": tokens_range[node_info["start"]][0], "to": tokens_range[node_info["end"]][1]}], \
-                        "id": node_cnt,
-                        "label": node_info["label"]})
+                if other_ret != [[],[]]:
+                    nodes_info_list.append(
+                        {"anchors": [
+                            {"from": tokens_range[node_info["start"]][0], "to": tokens_range[node_info["end"]][1]}], \
+                            "id": node_cnt,
+                            "label": node_info["label"],
+                            "properties": other_ret[0],
+                            "values": other_ret[1]
+                        })
+                else:
+                    nodes_info_list.append(
+                        {"anchors": [
+                            {"from": tokens_range[node_info["start"]][0], "to": tokens_range[node_info["end"]][1]}], \
+                            "id": node_cnt,
+                            "label": node_info["label"],
+                        })
             processing_node_dict[node_idx] = node_cnt
             node_cnt += 1
 
@@ -128,10 +143,26 @@ def eds_trans_outputs_into_mrp(outputs):
     return ret_dict
 
 
+def get_other_value(predictor,vocab_dict,label,token):
+    property = []
+    values = []
+    raw_values = predictor.predict(token=token, concept_label=label)
+
+    for idx, v in enumerate(raw_values):
+        if v == 1 and idx !=0 and idx !=1:
+            p_v = vocab_dict[idx].split('_')
+            property.append(p_v[0])
+            values.append(p_v[-1])
+
+    return [property,values]
+
+
 def get_carg_value(label, token):
+
     if label not in ['named', 'card', 'mofy', 'dofm', 'yofc', 'year_range', 'named_n', \
                      'dofw', 'numbered_hour', 'season', 'ord', 'fraction', 'excl', 'holiday', \
                      '_pm_x', 'timezone_p', '_am_x', 'polite', 'meas_np']:
+
         return False
 
     int_dict = {
@@ -232,7 +263,7 @@ def get_carg_value(label, token):
         # changed followed github issue
         for value_sp in value.lower().split():
             if value_sp in month_dict:
-                value_sp = month_dict[value_sp]
+                value = month_dict[value_sp]
 
     elif label == 'named':
         # W.D.) -> W.D.
@@ -325,5 +356,7 @@ def get_carg_value(label, token):
 
     else:
         value = token.strip(punctuation_str).lower()
+
+
 
     return value

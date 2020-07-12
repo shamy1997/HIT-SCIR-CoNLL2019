@@ -11,8 +11,12 @@ from torch.nn.modules import Dropout
 
 from modules import StackRnn
 from utils import eds_trans_outputs_into_mrp
+from utils.eds_multilabel_predictor import load_model
+
+
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
 
 
 @Model.register("transition_parser_eds")
@@ -116,6 +120,8 @@ class TransitionParser(Model):
                                      recurrent_dropout_probability=recurrent_dropout_probability,
                                      layer_dropout_probability=layer_dropout_probability,
                                      same_dropout_mask_per_instance=same_dropout_mask_per_instance)
+
+        self.pv_predictor,self.vocab_dict = load_model('data/eds_label/model.tar.gz')
         initializer(self)
 
     def _greedy_decode(self,
@@ -506,14 +512,16 @@ class TransitionParser(Model):
             predicted_mrps = []
 
             for sent_idx in range(batch_size):
-                predicted_mrps.append(eds_trans_outputs_into_mrp({
-                    'tokens': output_dict['tokens'][sent_idx],
-                    'edge_list': output_dict['edge_list'][sent_idx],
-                    'meta_info': output_dict['meta_info'][sent_idx],
-                    'top_node': output_dict['top_node'][sent_idx],
-                    'concept_node': output_dict['concept_node'][sent_idx],
-                    'tokens_range': output_dict['tokens_range'][sent_idx],
-                }))
+                predicted_mrps.append(eds_trans_outputs_into_mrp(self.pv_predictor,
+                                                                 self.vocab_dict,
+                                                                 {
+                                                                     'tokens': output_dict['tokens'][sent_idx],
+                                                                     'edge_list': output_dict['edge_list'][sent_idx],
+                                                                     'meta_info': output_dict['meta_info'][sent_idx],
+                                                                     'top_node': output_dict['top_node'][sent_idx],
+                                                                     'concept_node': output_dict['concept_node'][sent_idx],
+                                                                     'tokens_range': output_dict['tokens_range'][sent_idx],
+                                                                 }))
 
             self._mces_metric(predicted_mrps, gold_mrps)
 
