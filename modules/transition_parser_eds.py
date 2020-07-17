@@ -314,7 +314,7 @@ class TransitionParser(Model):
                         buffer_emb = self.buffer.get_output(sent_idx)
 
                         comp_rep = torch.tanh(
-                            self.end_concept_node(torch.cat((stack_emb, buffer_emb, concept_node_label_emb))))
+                            self.end_concept_node(torch.cat((stack_emb, buffer_emb, concept_node_label_emb,ratio_factor))))
                         self.stack.pop(sent_idx)
                         self.stack.push(sent_idx,
                                         input=comp_rep,
@@ -435,7 +435,7 @@ class TransitionParser(Model):
             torch.stack([torch.sum(torch.stack(cur_loss)) for cur_loss in losses if len(cur_loss) > 0])) / \
                     sum([len(cur_loss) for cur_loss in losses])
 
-        _loss_ratio_factor = -torch.sum(torch.stack([ratio_factor_loss for ratio_factor_loss in ratio_factor_losses]))
+        _loss_ratio_factor = -torch.sum(torch.stack([ratio_factor_loss for ratio_factor_loss in ratio_factor_losses]))/batch_size
         # _loss_CCE = -torch.sum(torch.stack(temp_loss)/sum([len(cur_loss) for cur_loss in losses]))
 
             # _loss_CCE = -torch.sum(
