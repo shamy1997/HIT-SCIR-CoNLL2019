@@ -27,6 +27,7 @@ class TransitionParser(Model):
                  word_dim: int,
                  hidden_dim: int,
                  action_dim: int,
+                 ratio_dim: int,
                  concept_label_dim: int,
                  num_layers: int,
                  mces_metric: Metric = None,
@@ -60,6 +61,7 @@ class TransitionParser(Model):
         self._mces_metric = mces_metric
 
         self.word_dim = word_dim
+        self.ratio_dim = ratio_dim
         self.hidden_dim = hidden_dim
         self.action_dim = action_dim
         self.concept_label_dim = concept_label_dim
@@ -76,14 +78,14 @@ class TransitionParser(Model):
                                               trainable=False)
 
         # syntactic composition
-        self.p_comp = torch.nn.Linear(self.hidden_dim * 6, self.word_dim)
+        self.p_comp = torch.nn.Linear(self.hidden_dim * 6+self.ratio_dim, self.word_dim)
         # parser state to hidden
-        self.p_s2h = torch.nn.Linear(self.hidden_dim * 4, self.hidden_dim)
+        self.p_s2h = torch.nn.Linear(self.hidden_dim * 4+self.ratio_dim, self.hidden_dim)
         # hidden to action
-        self.p_act = torch.nn.Linear(self.hidden_dim, self.num_actions)
+        self.p_act = torch.nn.Linear(self.hidden_dim+self.ratio_dim, self.num_actions)
 
-        self.start_concept_node = torch.nn.Linear(self.hidden_dim + self.concept_label_dim, self.word_dim)
-        self.end_concept_node = torch.nn.Linear(self.hidden_dim * 2 + self.concept_label_dim, self.word_dim)
+        self.start_concept_node = torch.nn.Linear(self.hidden_dim + self.concept_label_dim+self.ratio_dim, self.word_dim)
+        self.end_concept_node = torch.nn.Linear(self.hidden_dim * 2 + self.concept_label_dim+self.ratio_dim, self.word_dim)
 
         self.pempty_buffer_emb = torch.nn.Parameter(torch.randn(self.hidden_dim))
         self.proot_stack_emb = torch.nn.Parameter(torch.randn(self.word_dim))
@@ -222,6 +224,8 @@ class TransitionParser(Model):
 
                     log_probs = None
                     action = valid_actions[0]
+                    ratio_factor = torch.tensor([len(concept_node[sent_idx]) / (1.0 * sent_len[sent_idx])],
+                                                device=self.pempty_action_emb.device)
 
                     # 选择有效操作
                     if len(valid_actions) > 1:
@@ -236,7 +240,9 @@ class TransitionParser(Model):
                             else self.deque.get_output(sent_idx)
 
                         p_t = torch.cat((buffer_emb, stack_emb, action_emb, deque_emb))
+                        p_t = torch.cat([p_t, ratio_factor])
                         h = torch.tanh(self.p_s2h(p_t))
+                        h = torch.cat([h, ratio_factor])
                         logits = self.p_act(h)[torch.tensor(valid_actions, dtype=torch.long, device=h.device)]
                         valid_action_tbl = {a: i for i, a in enumerate(valid_actions)}
                         log_probs = torch.log_softmax(logits, dim=0)
@@ -262,6 +268,7 @@ class TransitionParser(Model):
                         # get concept label and corresponding embedding
                         concept_node_token = len(concept_node[sent_idx]) + sent_len[sent_idx]
                         stack_emb = self.stack.get_output(sent_idx)
+                        stack_emb = torch.cat([stack_emb,ratio_factor])
                         concept_node_label_token = self.vocab.get_token_from_index(action, namespace='actions') \
                             .split('#SPLIT_TAG#', maxsplit=1)[1]
                         concept_node_label = self.vocab.get_token_index(concept_node_label_token,
@@ -348,7 +355,7 @@ class TransitionParser(Model):
                         deque_emb = self.pempty_deque_emb if self.deque.get_len(sent_idx) == 0 \
                             else self.deque.get_output(sent_idx)
 
-                        comp_rep = torch.cat((head_rep, mod_rep, action_emb, buffer_emb, stack_emb, deque_emb))
+                        comp_rep = torch.cat((head_rep, mod_rep, action_emb, buffer_emb, stack_emb, deque_emb,ratio_factor))
                         comp_rep = torch.tanh(self.p_comp(comp_rep))
 
                         if action in action_id["LEFT-EDGE"]:
@@ -395,6 +402,10 @@ class TransitionParser(Model):
                                         input=buffer_top['stack_rnn_input'],
                                         extra={'token': buffer_top['token']})
 
+                    elif action in action_id["FINISH"]:
+                        ratio_factor_losses[sent_idx] = ratio_factor
+
+
                     # push action into action_stack
                     self.action_stack.push(sent_idx,
                                            input=self.action_embedding(
@@ -405,6 +416,8 @@ class TransitionParser(Model):
                     action_list[sent_idx].append(self.vocab.get_token_from_index(action, namespace='actions'))
 
                     action_sequence_length[sent_idx] += 1
+
+
 
         # categorical cross-entropy
         # temp_loss = []
@@ -422,13 +435,14 @@ class TransitionParser(Model):
             torch.stack([torch.sum(torch.stack(cur_loss)) for cur_loss in losses if len(cur_loss) > 0])) / \
                     sum([len(cur_loss) for cur_loss in losses])
 
+        _loss_ratio_factor = -torch.sum(torch.stack([ratio_factor_loss for ratio_factor_loss in ratio_factor_losses]))
         # _loss_CCE = -torch.sum(torch.stack(temp_loss)/sum([len(cur_loss) for cur_loss in losses]))
 
             # _loss_CCE = -torch.sum(
             #     torch.stack([torch.sum(torch.stack(cur_loss)) for cur_loss in losses if len(cur_loss) > 0])) / \
             #             sum([len(cur_loss) for cur_loss in losses])
 
-        _loss = _loss_CCE
+        _loss = _loss_CCE + _loss_ratio_factor
 
         ret = {
             'loss': _loss,
