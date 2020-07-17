@@ -402,8 +402,8 @@ class TransitionParser(Model):
                                         input=buffer_top['stack_rnn_input'],
                                         extra={'token': buffer_top['token']})
 
-                    elif action in action_id["FINISH"]:
-                        ratio_factor_losses[sent_idx] = ratio_factor
+
+                    ratio_factor_losses[sent_idx] = ratio_factor
 
 
                     # push action into action_stack
